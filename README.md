@@ -42,7 +42,7 @@ Automated deployment of a travel planning multi-agent system on Amazon Bedrock A
 
 | Script | Purpose |
 |--------|---------|
-| `synthetic-data.py` | Creates DynamoDB tables and loads synthetic travel data (flights, hotels, restaurants, attractions, weather) |
+| `synthetic-data.py` | Creates DynamoDB tables and loads synthetic travel data (flights, hotels, restaurants, attractions, weather, loyalty programs, reservations) |
 | `deploy-gateway.py` | Deploys Lambda functions, Cognito auth (M2M client credentials), IAM roles, and the AgentCore MCP Gateway |
 | `register-target.py` | Registers `search_flights` and `book_flights` MCP tool targets against the gateway |
 | `travel-assistant.py` | Deploys `flight_agent` and `supervisor_agent` to AgentCore Runtime using the Strands SDK |
@@ -57,12 +57,18 @@ Automated deployment of a travel planning multi-agent system on Amazon Bedrock A
 - Python 3.10+
 - AWS CLI configured with credentials that have admin-level access
 - `AWS_DEFAULT_REGION` set (defaults to `us-east-1`)
-- Lambda zip files present at `../notebooks - v3/travel-mac/lambdas/`
+- Lambda zip files present in the `lambdas/` directory (included in this repo)
 
 Install dependencies:
 ```bash
-pip install boto3 requests bedrock-agentcore bedrock-agentcore-starter-toolkit strands-agents strands-agents-tools
+pip install boto3 requests faker bedrock-agentcore bedrock-agentcore-starter-toolkit strands-agents strands-agents-tools
 ```
+
+> **Note:** On systems with externally managed Python environments (PEP 668), you may need to create a virtual environment first:
+> ```bash
+> python3 -m venv .venv
+> source .venv/bin/activate
+> ```
 
 ## Deployment Steps
 
@@ -70,9 +76,10 @@ Run scripts in order from the `exec-travel-assistant/` directory:
 
 ### Step 1: Load synthetic data
 ```bash
+export AWS_DEFAULT_REGION=us-east-1
 python synthetic-data.py
 ```
-Creates 5 DynamoDB tables (`exec-synthetic-flights`, `exec-synthetic-hotels`, `exec-synthetic-restaurants`, `exec-synthetic-attractions`, `exec-synthetic-weather`) and populates them with sample travel data.
+Creates 7 DynamoDB tables (`exec-synthetic-flights`, `exec-synthetic-hotels`, `exec-synthetic-restaurants`, `exec-synthetic-attractions`, `exec-synthetic-weather`, `exec-loyalty-programs`, `exec-travel-reservations`) and populates them with sample travel data.
 
 ### Step 2: Deploy the MCP Gateway
 ```bash
@@ -84,6 +91,8 @@ Creates:
 - Cognito user pool (`exec-agentcore-gateway-pool`), resource server, M2M client
 - AgentCore MCP Gateway (`exec-TravellerAppGwforLambda`) with Cognito JWT authorizer
 - Gateway IAM role (`agentcore-exec-lambdagateway-role`)
+
+> **Note:** Ensure `AWS_DEFAULT_REGION` is exported in your shell before running each script, or prefix each command with it (e.g., `AWS_DEFAULT_REGION=us-east-1 python deploy-gateway.py`).
 
 Outputs `config.json` with all resource IDs, ARNs, and Cognito credentials.
 
@@ -205,7 +214,7 @@ config.json
 
 | Service | Resources | Naming Pattern |
 |---------|-----------|----------------|
-| DynamoDB | 5 tables | `exec-synthetic-*` |
+| DynamoDB | 7 tables | `exec-synthetic-*`, `exec-loyalty-programs`, `exec-travel-reservations` |
 | Lambda | 7 functions | `exec_*_lambda` |
 | IAM | 4 roles | `agentcore-exec-*-role`, `exec_gateway_lambda_iamrole` |
 | Cognito | 1 user pool, 1 resource server, 1 M2M client | `exec-agentcore-gateway-*` |
