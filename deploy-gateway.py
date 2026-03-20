@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Deploys the AgentCore MCP Gateway infrastructure:
-  1. Deploy 6 Lambda functions (flight, hotel, restaurant, attraction, loyalty, reservation)
+  1. Deploy Lambda functions (search_flights, book_flights)
   2. Create IAM role for the gateway
   3. Set up Cognito auth (user pool, resource server, M2M client)
   4. Create the AgentCore Gateway with Cognito JWT authorizer
@@ -35,12 +35,7 @@ COGNITO_SCOPES = [
 
 # Lambda definitions: (zip_file, function_name, handler)
 LAMBDAS = [
-    ("search_flights_lambda.zip", f"{PREFIX}_flight_lambda", "search_flights_lambda.lambda_handler"),
-    ("search_hotels_lambda.zip", f"{PREFIX}_hotel_lambda", "search_hotels_lambda.lambda_handler"),
-    ("search_restaurants_lambda.zip", f"{PREFIX}_restaurant_lambda", "search_restaurants_lambda.lambda_handler"),
-    ("search_attractions_lambda.zip", f"{PREFIX}_attraction_lambda", "search_attractions_lambda.lambda_handler"),
-    ("search_loyalty_lambda.zip", f"{PREFIX}_loyalty_lambda", "search_loyalty_lambda.lambda_handler"),
-    ("reservations_lambda.zip", f"{PREFIX}_reservation_lambda", "reservations_lambda.lambda_handler"),
+    ("search_flights_deploy.zip", f"{PREFIX}_search_flights_lambda", "search_flights.lambda_handler"),
     ("book_flights_lambda.zip", f"{PREFIX}_book_flight_lambda", "book_flights_lambda.lambda_handler"),
 ]
 
@@ -75,10 +70,6 @@ def ensure_lambda_role():
         iam.attach_role_policy(
             RoleName=LAMBDA_ROLE_NAME,
             PolicyArn="arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-        )
-        iam.attach_role_policy(
-            RoleName=LAMBDA_ROLE_NAME,
-            PolicyArn="arn:aws:iam::aws:policy/AmazonDynamoDBReadOnlyAccess",
         )
         print(f"  ✅ Created Lambda role: {LAMBDA_ROLE_NAME}")
         print("  ⏳ Waiting for role propagation...")

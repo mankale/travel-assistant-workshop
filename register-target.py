@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Registers 6 MCP gateway targets (flight, hotel, restaurant, attraction, loyalty, reservation)
+Registers MCP gateway targets (search_flights, book_flights)
 against the AgentCore Gateway created by deploy-gateway.py.
 
 Reads gateway_id and lambda_arns from config.json.
@@ -48,19 +48,17 @@ def _tool_schema(lambda_arn, name, description, properties, required):
 
 TARGETS = [
     {
-        "lambda_key": f"{PREFIX}_flight_lambda",
-        "target_name": f"{PREFIX}-FlightMCPTarget",
+        "lambda_key": f"{PREFIX}_search_flights_lambda",
+        "target_name": f"{PREFIX}-SearchFlightMCPTarget",
         "description": "Flight search MCP target using Lambda function for travel planning",
         "tool_name": "search_flights",
-        "tool_description": "Search for flights based on origin, destination, dates, and preferences. Returns available flight options with pricing, schedules, and amenities.",
+        "tool_description": "Search for flights based on origin, optional destination, and optional seat class. Returns available flight options with pricing and duration.",
         "properties": {
-            "origin": {"type": "string", "description": "Origin airport code or city name (e.g., 'NYC', 'New York')"},
-            "destination": {"type": "string", "description": "Destination airport code or city name (e.g., 'PAR', 'Paris')"},
-            "departure_date": {"type": "string", "description": "Departure date in YYYY-MM-DD format (e.g., '2024-12-15')"},
-            "passengers": {"type": "integer", "description": "Number of passengers (1-9 passengers supported)"},
-            "budget_range": {"type": "string", "description": "Budget preference for flights: low, medium, high, or luxury"},
+            "origin": {"type": "string", "description": "Origin airport code or city name (e.g., 'JFK', 'New York')"},
+            "destination": {"type": "string", "description": "Optional destination airport code or city name (e.g., 'CDG', 'Paris')"},
+            "seat_class": {"type": "string", "description": "Optional seat class preference: economy or business"},
         },
-        "required": ["origin", "destination", "departure_date"],
+        "required": ["origin"],
     },
     {
         "lambda_key": f"{PREFIX}_book_flight_lambda",

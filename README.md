@@ -1,6 +1,6 @@
 # Executive Travel Assistant — Deployment Scripts
 
-Automated deployment of a travel planning multi-agent system on Amazon Bedrock AgentCore. Deploys a supervisor agent that orchestrates a flight search and booking sub-agent, backed by an MCP gateway connected to AWS Lambda functions and DynamoDB.
+Automated deployment of a travel planning multi-agent system on Amazon Bedrock AgentCore. Deploys a supervisor agent that orchestrates a flight search and booking sub-agent, backed by an MCP gateway connected to AWS Lambda functions.
 
 ## Architecture
 
@@ -26,24 +26,26 @@ Automated deployment of a travel planning multi-agent system on Amazon Bedrock A
                                  ┌─────────────────────┐
                                  │  Lambda Functions    │
                                  │  (search_flights,    │
-                                 │   book_flights,      │
-                                 │   search_hotels,     │
-                                 │   etc.)              │
-                                 └──────────┬──────────┘
-                                            │
-                                            ▼
-                                 ┌─────────────────────┐
-                                 │  DynamoDB Tables     │
-                                 │  (synthetic data)    │
+                                 │   book_flights)      │
                                  └─────────────────────┘
 ```
+
+## Data
+
+Flight data is stored in `flight-data.json` — 100 sample flight records with realistic airline-route constraints:
+
+- 10 airports: JFK, LAX, CDG, LHR, FRA, NRT, SYD, DXB, BLR, SIN
+- 10 airlines, each operating only through their hub (e.g., Air India always involves BLR, Emirates always involves DXB)
+- Distance-based pricing with economy always cheaper than business
+- Realistic flight durations based on haversine distance
+
+The `search_flights` Lambda loads this JSON at cold start and searches it in-memory.
 
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `synthetic-data.py` | Creates DynamoDB tables and loads synthetic travel data (flights, hotels, restaurants, attractions, weather, loyalty programs, reservations) |
-| `deploy-gateway.py` | Deploys Lambda functions, Cognito auth (M2M client credentials), IAM roles, and the AgentCore MCP Gateway |
+| `deploy-gateway.py` | Deploys 2 Lambda functions, Cognito auth (M2M client credentials), IAM roles, and the AgentCore MCP Gateway |
 | `register-target.py` | Registers `search_flights` and `book_flights` MCP tool targets against the gateway |
 | `travel-assistant.py` | Deploys `flight_agent` and `supervisor_agent` to AgentCore Runtime using the Strands SDK |
 | `test-client.py` | Interactive multi-turn client for testing the deployed supervisor agent |
@@ -72,44 +74,42 @@ pip install boto3 requests faker bedrock-agentcore bedrock-agentcore-starter-too
 
 ## Deployment Steps
 
-Run scripts in order from the `exec-travel-assistant/` directory:
+Run scripts in order from the `travel-assistant-workshop/` directory:
 
-### Step 1: Load synthetic data
+### Step 1: Deploy the MCP Gateway
 ```bash
 export AWS_DEFAULT_REGION=us-east-1
-python synthetic-data.py
-```
-Creates 7 DynamoDB tables (`exec-synthetic-flights`, `exec-synthetic-hotels`, `exec-synthetic-restaurants`, `exec-synthetic-attractions`, `exec-synthetic-weather`, `exec-loyalty-programs`, `exec-travel-reservations`) and populates them with sample travel data.
-
-### Step 2: Deploy the MCP Gateway
-```bash
 python deploy-gateway.py
 ```
 Creates:
-- 7 Lambda functions (flight, hotel, restaurant, attraction, loyalty, reservation, book_flight)
-- Lambda execution IAM role (`exec_gateway_lambda_iamrole`)
+- 2 Lambda functions (`exec_search_flights_lambda`, `exec_book_flight_lambda`) from zips in `lambdas/`
+- Lambda execution IAM role (`exec_gateway_lambda_iamrole`) with `AWSLambdaBasicExecutionRole`
 - Cognito user pool (`exec-agentcore-gateway-pool`), resource server, M2M client
 - AgentCore MCP Gateway (`exec-TravellerAppGwforLambda`) with Cognito JWT authorizer
-- Gateway IAM role (`agentcore-exec-lambdagateway-role`)
+- Gateway IAM role (`agentcore-exec-lambdagateway-role`) with `lambda:InvokeFunction` permission
 
 > **Note:** Ensure `AWS_DEFAULT_REGION` is exported in your shell before running each script, or prefix each command with it (e.g., `AWS_DEFAULT_REGION=us-east-1 python deploy-gateway.py`).
 
 Outputs `config.json` with all resource IDs, ARNs, and Cognito credentials.
 
-### Step 3: Register MCP tool targets
+### Step 2: Register MCP tool targets
 ```bash
 python register-target.py
 ```
-Registers `search_flights` and `book_flights` tools as Lambda-backed MCP targets on the gateway. Reads gateway ID and Lambda ARNs from `config.json`.
+Registers 2 Lambda-backed MCP targets on the gateway:
+- `search_flights` — requires `origin`, `destination`, `departure_date`; optional `seat_class` (economy/business)
+- `book_flights` — stub that returns a booking confirmation
 
-### Step 4: Deploy agents
+Reads gateway ID and Lambda ARNs from `config.json`.
+
+### Step 3: Deploy agents
 ```bash
 python travel-assistant.py
 ```
 Creates:
 - IAM roles for both agents (`agentcore-exec-flight_agent-role`, `agentcore-exec-supervisor_agent-role`)
 - `flight_agent` — connects to the MCP gateway via Cognito M2M token, exposes `search_flights` and `book_flights` tools
-- `supervisor_agent` — orchestrates flight_agent via `bedrock-agentcore:InvokeAgentRuntime` for both flight search and booking, reads sub-agent ARNs from SSM Parameter Store
+- `supervisor_agent` — orchestrates flight_agent via `bedrock-agentcore:InvokeAgentRuntime`, reads sub-agent ARNs from SSM Parameter Store
 - SSM parameters (`/agents/flight_agent_arn`, `/agents/supervisor_agent_arn`)
 - ECR repositories (auto-created by starter toolkit)
 
@@ -120,7 +120,7 @@ To deploy and run a smoke test:
 python travel-assistant.py --test
 ```
 
-### Step 5: Test the deployed agents
+### Step 4: Test the deployed agents
 ```bash
 python test-client.py
 ```
@@ -134,7 +134,7 @@ You can also pass an agent ARN directly:
 python test-client.py --agent-arn arn:aws:bedrock-agentcore:us-east-1:123456:runtime/supervisor_agent-XXXXX
 ```
 
-### Step 6: Cleanup (when done)
+### Step 5: Cleanup (when done)
 ```bash
 # Preview what will be deleted
 python cleanup.py --dry-run
@@ -147,16 +147,15 @@ Tears down all resources in dependency-aware order:
 2. SSM parameters
 3. Gateway targets → gateway (waits for target deletion to propagate)
 4. Cognito client → resource server → domain → user pool
-5. DynamoDB tables
-6. Lambda functions → Lambda IAM role
-7. Agent IAM roles
-8. Gateway IAM role
-9. ECR repositories
-10. Local files (`_agent_staging/`, `config.json`)
+5. Lambda functions → Lambda IAM role
+6. Agent IAM roles
+7. Gateway IAM role
+8. ECR repositories
+9. Local files (`_agent_staging/`, `config.json`)
 
-### Step 7: Deploy the frontend
+### Step 6: Deploy the frontend
 
-The frontend is a React chat UI backed by a FastAPI server that proxies requests to the supervisor agent with SSE streaming. The backend reads `supervisor_agent_arn` from `config.json` (generated in Step 2/4).
+The frontend is a React chat UI backed by a FastAPI server that proxies requests to the supervisor agent with SSE streaming. The backend reads `supervisor_agent_arn` from `config.json` (generated in Step 1/3).
 
 ```bash
 cd frontend
@@ -184,9 +183,9 @@ REACT_APP_API_URL=http://<remote-host>:8000 npm start
 The agent behavior is controlled by system prompts defined in `travel-assistant.py`:
 
 **flight_agent** — Handles both search and booking via MCP gateway tools:
-- Uses `search_flights` to find flights based on origin, destination, dates, and preferences
-- Uses `book_flights` to book flights directly without requiring any input parameters (the Lambda is a no-arg stub that returns a confirmation)
-- Defaults to one-way, Economy class, current year next month when details are omitted
+- Uses `search_flights` to find flights based on origin, destination, departure_date, and optional seat_class
+- Uses `book_flights` to book flights directly (the Lambda is a no-arg stub that returns a confirmation)
+- Defaults to economy class, current year next month when details are omitted
 
 **supervisor_agent** — Orchestrates the flight agent for both search and booking:
 - Delegates all flight queries and booking requests to `call_flight_agent`
@@ -214,11 +213,10 @@ config.json
 
 | Service | Resources | Naming Pattern |
 |---------|-----------|----------------|
-| DynamoDB | 7 tables | `exec-synthetic-*`, `exec-loyalty-programs`, `exec-travel-reservations` |
-| Lambda | 7 functions | `exec_*_lambda` |
+| Lambda | 2 functions | `exec_search_flights_lambda`, `exec_book_flight_lambda` |
 | IAM | 4 roles | `agentcore-exec-*-role`, `exec_gateway_lambda_iamrole` |
 | Cognito | 1 user pool, 1 resource server, 1 M2M client | `exec-agentcore-gateway-*` |
-| AgentCore Gateway | 1 gateway + 2 targets | `exec-TravellerAppGwforLambda`, `exec-FlightMCPTarget`, `exec-BookFlightMCPTarget` |
+| AgentCore Gateway | 1 gateway + 2 targets | `exec-TravellerAppGwforLambda`, `exec-SearchFlightMCPTarget`, `exec-BookFlightMCPTarget` |
 | AgentCore Runtime | 2 agents + 2 endpoints | `exec_flight_agent`, `exec_supervisor_agent` |
 | SSM Parameter Store | 2 parameters | `/agents/flight_agent_arn`, `/agents/supervisor_agent_arn` |
 | ECR | 2 repositories | auto-created by starter toolkit |

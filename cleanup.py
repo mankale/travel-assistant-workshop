@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Cleans up ALL resources deployed by exec-travel-assistant/ scripts.
+Cleans up ALL resources deployed by travel-assistant-workshop/ scripts.
 
 Deletion order respects dependencies:
   1. AgentCore agent runtime endpoints → agent runtimes (supervisor first, then flight)
@@ -8,11 +8,10 @@ Deletion order respects dependencies:
   3. Gateway targets → gateway
   4. Cognito client → resource server → user pool domain → user pool
   5. Lambda functions → Lambda IAM role
-  6. DynamoDB tables
-  7. Agent IAM roles (inline policies detached first)
-  8. Gateway IAM role
-  9. ECR repositories
- 10. Local staging directory
+  6. Agent IAM roles (inline policies detached first)
+  7. Gateway IAM role
+  8. ECR repositories
+  9. Local staging directory
 
 Usage:
     python cleanup.py           # delete everything
@@ -37,20 +36,12 @@ iam = boto3.client("iam", region_name=REGION)
 ssm = boto3.client("ssm", region_name=REGION)
 lam = boto3.client("lambda", region_name=REGION)
 cognito = boto3.client("cognito-idp", region_name=REGION)
-dynamodb = boto3.client("dynamodb", region_name=REGION)
 ecr = boto3.client("ecr", region_name=REGION)
 agentcore = boto3.client("bedrock-agentcore-control", region_name=REGION)
 
 # Resource names (must match deploy scripts)
 LAMBDA_NAMES = [
-    f"{PREFIX}_flight_lambda", f"{PREFIX}_hotel_lambda", f"{PREFIX}_restaurant_lambda",
-    f"{PREFIX}_attraction_lambda", f"{PREFIX}_loyalty_lambda", f"{PREFIX}_reservation_lambda",
-]
-DYNAMO_TABLES = [
-    f"{PREFIX}-synthetic-flights", f"{PREFIX}-synthetic-hotels",
-    f"{PREFIX}-synthetic-restaurants", f"{PREFIX}-synthetic-attractions",
-    f"{PREFIX}-synthetic-weather",
-    f"{PREFIX}-loyalty-programs", f"{PREFIX}-travel-reservations",
+    f"{PREFIX}_search_flights_lambda", f"{PREFIX}_book_flight_lambda",
 ]
 AGENT_ROLE_NAMES = [
     f"agentcore-{PREFIX}-flight_agent-role",
@@ -254,21 +245,10 @@ def delete_cognito():
 
 
 # ---------------------------------------------------------------------------
-# 5. Delete DynamoDB tables (before Lambdas, since Lambdas read from them)
-# ---------------------------------------------------------------------------
-def delete_dynamo_tables():
-    print("\n🗄️  Step 5: Deleting DynamoDB tables...")
-    for table in DYNAMO_TABLES:
-        print(f"  Deleting: {table}")
-        safe(dynamodb.delete_table, TableName=table)
-        print(f"    ✅ Deleted")
-
-
-# ---------------------------------------------------------------------------
-# 6. Delete Lambda functions → Lambda IAM role
+# 5. Delete Lambda functions → Lambda IAM role
 # ---------------------------------------------------------------------------
 def delete_lambdas():
-    print("\n⚡ Step 6: Deleting Lambda functions...")
+    print("\n⚡ Step 5: Deleting Lambda functions...")
     for fn in LAMBDA_NAMES:
         print(f"  Deleting: {fn}")
         safe(lam.delete_function, FunctionName=fn)
@@ -280,7 +260,7 @@ def delete_lambdas():
 
 
 # ---------------------------------------------------------------------------
-# 7. Delete agent IAM roles
+# 6. Delete agent IAM roles
 # ---------------------------------------------------------------------------
 def delete_iam_role(role_name):
     """Delete an IAM role after removing all inline and attached policies."""
@@ -301,26 +281,26 @@ def delete_iam_role(role_name):
 
 
 def delete_agent_roles():
-    print("\n🔐 Step 7: Deleting agent IAM roles...")
+    print("\n🔐 Step 6: Deleting agent IAM roles...")
     for role in AGENT_ROLE_NAMES:
         print(f"  Deleting: {role}")
         delete_iam_role(role)
 
 
 # ---------------------------------------------------------------------------
-# 8. Delete gateway IAM role
+# 7. Delete gateway IAM role
 # ---------------------------------------------------------------------------
 def delete_gateway_role():
-    print("\n🔐 Step 8: Deleting gateway IAM role...")
+    print("\n🔐 Step 7: Deleting gateway IAM role...")
     print(f"  Deleting: {GATEWAY_ROLE_NAME}")
     delete_iam_role(GATEWAY_ROLE_NAME)
 
 
 # ---------------------------------------------------------------------------
-# 9. Delete ECR repositories (created by starter toolkit with auto_create_ecr)
+# 8. Delete ECR repositories (created by starter toolkit with auto_create_ecr)
 # ---------------------------------------------------------------------------
 def delete_ecr_repos():
-    print("\n📦 Step 9: Deleting ECR repositories...")
+    print("\n📦 Step 8: Deleting ECR repositories...")
     try:
         repos = ecr.describe_repositories(maxResults=100).get("repositories", [])
         for repo in repos:
@@ -335,10 +315,10 @@ def delete_ecr_repos():
 
 
 # ---------------------------------------------------------------------------
-# 10. Clean up local files
+# 9. Clean up local files
 # ---------------------------------------------------------------------------
 def delete_local_files():
-    print("\n🧹 Step 10: Cleaning up local files...")
+    print("\n🧹 Step 9: Cleaning up local files...")
     for path in [STAGING_DIR]:
         if os.path.exists(path):
             print(f"  Removing: {path}")
@@ -372,12 +352,11 @@ def main():
     delete_ssm_params()         # 2. SSM params
     delete_gateway()            # 3. gateway targets → gateway
     delete_cognito()            # 4. cognito client → server → domain → pool
-    delete_dynamo_tables()      # 5. DynamoDB tables
-    delete_lambdas()            # 6. Lambda functions → Lambda role
-    delete_agent_roles()        # 7. agent IAM roles
-    delete_gateway_role()       # 8. gateway IAM role
-    delete_ecr_repos()          # 9. ECR repos
-    delete_local_files()        # 10. local staging + config files
+    delete_lambdas()            # 5. Lambda functions → Lambda role
+    delete_agent_roles()        # 6. agent IAM roles
+    delete_gateway_role()       # 7. gateway IAM role
+    delete_ecr_repos()          # 8. ECR repos
+    delete_local_files()        # 9. local staging + config files
 
     print("\n" + "=" * 60)
     if DRY_RUN:

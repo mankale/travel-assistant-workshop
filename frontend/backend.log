@@ -1,16 +1,22 @@
-INFO:     Started server process [60313]
+INFO:     Started server process [2467]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-Agent ARN: arn:aws:bedrock-agentcore:us-east-1:676235226974:runtime/exec_supervisor_agent-J3Ta7WAj6d
+Agent ARN: arn:aws:bedrock-agentcore:us-east-1:676235226974:runtime/exec_supervisor_agent-TkIUm828JM
 Starting server at http://localhost:8000
-INFO:     127.0.0.1:56439 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56489 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56489 - "GET /static/js/main.e7586984.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56489 - "GET /favicon.ico HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56490 - "POST /api/chat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56794 - "POST /api/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57313 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57473 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57473 - "GET /static/js/main.e7586984.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57473 - "GET /favicon.ico HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57672 - "POST /api/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57805 - "POST /api/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57951 - "POST /api/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58279 - "POST /api/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58331 - "POST /api/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58564 - "POST /api/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58837 - "POST /api/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59180 - "POST /api/chat HTTP/1.1" 200 OK
 INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [60313]
+INFO:     Finished server process [2467]

@@ -205,7 +205,7 @@ def create_transport():
     return streamablehttp_client(f"{{GATEWAY_URL}}", headers={{"Authorization": f"Bearer {{token}}"}})
 
 client = MCPClient(create_transport)
-model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+model = BedrockModel(model_id="us.anthropic.claude-opus-4-5-20251101-v1:0")
 
 with client:
     tools = client.list_tools_sync()
@@ -216,8 +216,14 @@ with client:
     def flight_agent_entrypoint(payload):
         user_input = payload.get("prompt", "")
         system = """You are a flight assistant. Use the search_flights tool to find flights and the book_flights tool to book flights.
-If no return date, assume one-way. If no year/month, assume current year next month. Default to Economy class.
-When the user asks to book a flight, use the book_flights tool directly without requiring any input parameters. Confirm that one of the flights is booked."""
+search_flights requires origin. destination and seat_class (economy/business) are optional filters.
+Default to economy class.
+When the user asks to book a flight, use the book_flights tool directly without requiring any input parameters. Confirm that one of the flights is booked.
+FORMATTING: Never use markdown tables. Always present flight results as a numbered bullet list. For each flight use this format:
+- **Flight**: <flight_number> | <airline>
+  - Route: <origin> → <destination>
+  - Duration: <duration> hours
+  - Class: <seat_class> | Price: $<price>"""
         response = agent(f"{{system}}\\n\\nUser: {{user_input}}")
         content = response.message.get("content", [])
         return content[0].get("text", "No response") if content else "No response"
@@ -267,16 +273,20 @@ def call_flight_agent(user_query):
     except Exception as e:
         return str(e)
 
-model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+model = BedrockModel(model_id="us.anthropic.claude-opus-4-5-20251101-v1:0")
 agent = Agent(
     model=model,
     system_prompt="""You are a travel planning supervisor. Coordinate with the flight agent to help users plan trips.
-- If no return date, assume one-way.
-- If no year/month in dates, assume current year next month.
-- Default to Economy class.
+- search_flights requires origin. destination and seat_class (economy/business) are optional filters.
+- Default to economy class.
 - Only provide flight info when asked about flights. Do not fabricate data.
 - Always use the call_flight_agent tool for flight queries and booking requests.
-- When the user asks to book a flight, use call_flight_agent to process the booking.""",
+- When the user asks to book a flight, use call_flight_agent to process the booking.
+- FORMATTING: Never use markdown tables. Always present flight results as a numbered bullet list. For each flight use this format:
+  1. **Flight**: <flight_number> | <airline>
+     - Route: <origin> → <destination>
+     - Duration: <duration> hours
+     - Class: <seat_class> | Price: $<price>""",
     tools=[call_flight_agent],
 )
 
@@ -453,7 +463,7 @@ def main():
                               config=Config(read_timeout=300))
         resp = client.invoke_agent_runtime(
             agentRuntimeArn=supervisor_agent_arn, qualifier="DEFAULT",
-            payload=json.dumps({"prompt": "Find flights from New York to Paris on 2026-04-15 for 2 passengers"}),
+            payload=json.dumps({"prompt": "Find flights from New York to Paris on 2026-04-15"}),
         )
         if "text/event-stream" in resp.get("contentType", ""):
             print("Streaming response:\n")
