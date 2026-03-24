@@ -160,6 +160,9 @@ def create_agent_role(agent_name):
         else:
             raise
     iam.put_role_policy(RoleName=role_name, PolicyName="AgentCorePolicy", PolicyDocument=policy)
+    iam.attach_role_policy(RoleName=role_name, PolicyArn="arn:aws:iam::aws:policy/AmazonBedrockFullAccess")
+    iam.attach_role_policy(RoleName=role_name, PolicyArn="arn:aws:iam::aws:policy/AWSMarketplaceFullAccess")
+    print(f"  ✅ Attached AmazonBedrockFullAccess and AWSMarketplaceFullAccess to {role_name}")
     return resp["Role"]["Arn"], role_name
 
 
