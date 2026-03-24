@@ -1,8 +1,6 @@
-# Executive Travel Assistant — Ubuntu Deployment Guide
+# Executive Travel Assistant — Deployment Scripts
 
 Automated deployment of a travel planning multi-agent system on Amazon Bedrock AgentCore. Deploys a supervisor agent that orchestrates a flight search and booking sub-agent, backed by an MCP gateway connected to AWS Lambda functions.
-
-> **Target OS:** Ubuntu 24.04 on AWS (kernel 6.17.0-1009-aws, x86_64)
 
 ## Architecture
 
@@ -58,54 +56,29 @@ The `search_flights` Lambda loads this JSON at cold start and searches it in-mem
 
 ## Prerequisites
 
-- Ubuntu 24.04 (tested on AWS EC2 with kernel 6.17.0-1009-aws)
-- Python 3.12 (ships with Ubuntu 24.04)
+- Python 3.10+
 - AWS CLI configured with credentials that have admin-level access
 - `AWS_DEFAULT_REGION` set (defaults to `us-east-1`)
 - Lambda zip files present in the `lambdas/` directory (included in this repo)
 
-### Install system packages
-
-Ubuntu 24.04 does not ship with `pip` or `venv` by default. Install them first:
-
+Install dependencies:
 ```bash
-sudo apt-get update -qq
-sudo apt-get install -y -qq python3-pip python3.12-venv
-```
-
-### Create a virtual environment
-
-Ubuntu enforces PEP 668, which blocks system-wide `pip install`. You **must** use a virtual environment:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
 pip install boto3 requests faker bedrock-agentcore bedrock-agentcore-starter-toolkit strands-agents strands-agents-tools
 ```
 
-> **Important:** Run `source .venv/bin/activate` in every new terminal session before running any deployment script.
+> **Note:** On systems with externally managed Python environments (PEP 668), you may need to create a virtual environment first:
+> ```bash
+> python3 -m venv .venv
+> source .venv/bin/activate
+> ```
 
 ## Deployment Steps
 
-Run scripts in order from the `travel-assistant-workshop/` directory. Ensure the virtual environment is activated in every terminal session:
+Run scripts in order from the `travel-assistant-workshop/` directory:
 
+### Step 1: Deploy the MCP Gateway
 ```bash
-cd travel-assistant-workshop
-source .venv/bin/activate
 export AWS_DEFAULT_REGION=us-east-1
-```
-
-### Step 1: Verify instance role permissions
-```bash
-python kiro-ide-instancerole-update.py
-```
-Finds the `kiro-ide-remote-InstanceRole-*` IAM role attached to your instance and ensures it has all permissions required by the workshop scripts (IAM, Lambda, Cognito, Bedrock AgentCore, SSM, ECR, CodeBuild, S3, CloudWatch Logs). Safe to run multiple times — skips if the policy is already attached.
-
-> **Do not proceed** to the next steps until this reports success.
-
-### Step 2: Deploy the MCP Gateway
-```bash
 python deploy-gateway.py
 ```
 Creates:
@@ -115,9 +88,11 @@ Creates:
 - AgentCore MCP Gateway (`exec-TravellerAppGwforLambda`) with Cognito JWT authorizer
 - Gateway IAM role (`agentcore-exec-lambdagateway-role`) with `lambda:InvokeFunction` permission
 
+> **Note:** Ensure `AWS_DEFAULT_REGION` is exported in your shell before running each script, or prefix each command with it (e.g., `AWS_DEFAULT_REGION=us-east-1 python deploy-gateway.py`).
+
 Outputs `config.json` with all resource IDs, ARNs, and Cognito credentials.
 
-### Step 3: Register MCP tool targets
+### Step 2: Register MCP tool targets
 ```bash
 python register-target.py
 ```
@@ -127,7 +102,7 @@ Registers 2 Lambda-backed MCP targets on the gateway:
 
 Reads gateway ID and Lambda ARNs from `config.json`.
 
-### Step 4: Deploy agents
+### Step 3: Deploy agents
 ```bash
 python travel-assistant.py
 ```
@@ -145,7 +120,7 @@ To deploy and run a smoke test:
 python travel-assistant.py --test
 ```
 
-### Step 5: Test the deployed agents
+### Step 4: Test the deployed agents
 ```bash
 python test-client.py
 ```
@@ -159,7 +134,7 @@ You can also pass an agent ARN directly:
 python test-client.py --agent-arn arn:aws:bedrock-agentcore:us-east-1:123456:runtime/supervisor_agent-XXXXX
 ```
 
-### Step 6: Cleanup (when done)
+### Step 5: Cleanup (when done)
 ```bash
 # Preview what will be deleted
 python cleanup.py --dry-run
@@ -178,20 +153,14 @@ Tears down all resources in dependency-aware order:
 8. ECR repositories
 9. Local files (`_agent_staging/`, `config.json`)
 
-### Step 7: Deploy the frontend
+### Step 6: Deploy the frontend
 
 The frontend is a React chat UI backed by a FastAPI server that proxies requests to the supervisor agent with SSE streaming. The backend reads `supervisor_agent_arn` from `config.json` (generated in Step 1/3).
 
-First, install Node.js if not already present:
-```bash
-sudo apt-get install -y -qq nodejs npm
-```
-
-Then build and run:
 ```bash
 cd frontend
 
-# Install Python backend dependencies (venv must be active)
+# Install Python backend dependencies
 pip install -r requirements.txt
 
 # Install React dependencies and build
@@ -251,12 +220,3 @@ config.json
 | AgentCore Runtime | 2 agents + 2 endpoints | `exec_flight_agent`, `exec_supervisor_agent` |
 | SSM Parameter Store | 2 parameters | `/agents/flight_agent_arn`, `/agents/supervisor_agent_arn` |
 | ECR | 2 repositories | auto-created by starter toolkit |
-
-## Troubleshooting (Ubuntu-specific)
-
-| Issue | Fix |
-|-------|-----|
-| `externally-managed-environment` error from pip | You're not in the venv. Run `source .venv/bin/activate` |
-| `No module named venv` | `sudo apt-get install -y python3.12-venv` |
-| `pip: command not found` | `sudo apt-get install -y python3-pip` |
-| `node: command not found` | `sudo apt-get install -y nodejs npm` |
