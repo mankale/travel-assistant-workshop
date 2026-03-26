@@ -6,31 +6,7 @@ Automated deployment of a travel planning multi-agent system on Amazon Bedrock A
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                    Amazon Bedrock AgentCore                       │
-│                                                                  │
-│  ┌─────────────────────┐       ┌──────────────────────────────┐  │
-│  │  supervisor_agent    │──────▶│  flight_agent                │  │
-│  │  (Strands SDK)       │ SSM   │  (Strands SDK + MCP Client)  │  │
-│  │                      │ ARN   │                              │  │
-│  └─────────────────────┘       └──────────┬───────────────────┘  │
-│                                           │                      │
-└───────────────────────────────────────────┼──────────────────────┘
-                                            │ Cognito M2M OAuth2
-                                            ▼
-                                 ┌─────────────────────┐
-                                 │  AgentCore Gateway   │
-                                 │  (MCP Protocol)      │
-                                 └──────────┬──────────┘
-                                            │
-                                            ▼
-                                 ┌─────────────────────┐
-                                 │  Lambda Functions    │
-                                 │  (search_flights,    │
-                                 │   book_flights)      │
-                                 └─────────────────────┘
-```
+![End to End Architecture](Architecture.png)
 
 ## Data
 
