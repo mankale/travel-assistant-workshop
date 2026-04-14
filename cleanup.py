@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Cleans up ALL resources deployed by travel-assistant-workshop/ scripts.
+Cleans up ALL resources deployed by sample-travel-assistant-workshop/ scripts.
 
 Deletion order respects dependencies:
   1. AgentCore agent runtime endpoints → agent runtimes (supervisor first, then flight)
@@ -343,7 +343,7 @@ def main():
         print("🔍 DRY RUN — no resources will be deleted\n")
 
     print("=" * 60)
-    print("  Travel Assistant Cleanup")
+    print("  AnyCompany AI Travel Assistant Cleanup")
     print("=" * 60)
     print(f"  Region: {REGION}")
     print(f"  Prefix: {PREFIX}")

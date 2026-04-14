@@ -257,7 +257,7 @@ def create_gateway(gateway_role_arn, cognito_info):
             protocolType="MCP",
             authorizerType="CUSTOM_JWT",
             authorizerConfiguration=auth_config,
-            description="AgentCore Gateway with AWS Lambda target type for exec travel assistant",
+            description="AgentCore Gateway with AWS Lambda target type for AnyCompany AI Travel Assistant",
         )
         gateway_id = resp["gatewayId"]
         gateway_url = resp["gatewayUrl"]

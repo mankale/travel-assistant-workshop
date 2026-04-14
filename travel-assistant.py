@@ -391,7 +391,7 @@ def main():
     test_mode = "--test" in sys.argv
 
     print("=" * 60)
-    print("  Travel Assistant Agent Deployment")
+    print("  AnyCompany AI Travel Assistant Agent Deployment")
     print("=" * 60)
     print(f"  Region:      {REGION}")
     print(f"  Gateway URL: {GATEWAY_URL}")

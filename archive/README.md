@@ -1,4 +1,4 @@
-# Executive Travel Assistant — Deployment Scripts
+# AnyCompany AI Travel Assistant — Deployment Scripts
 
 Automated deployment of a travel planning multi-agent system on Amazon Bedrock AgentCore. Deploys a supervisor agent that orchestrates a flight search and booking sub-agent, backed by an MCP gateway connected to AWS Lambda functions.
 
@@ -74,7 +74,7 @@ pip install boto3 requests faker bedrock-agentcore bedrock-agentcore-starter-too
 
 ## Deployment Steps
 
-Run scripts in order from the `travel-assistant-workshop/` directory:
+Run scripts in order from the `sample-travel-assistant-workshop/` directory:
 
 ### Step 1: Deploy the MCP Gateway
 ```bash
