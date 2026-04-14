@@ -80,7 +80,7 @@ def main():
     session_id = None
 
     print("=" * 60)
-    print("  Travel Assistant — Interactive Client")
+    print("  AnyCompany AI Travel Assistant — Interactive Client")
     print("=" * 60)
     print(f"  Agent: {agent_arn}")
     print(f"  Type 'quit' or 'exit' to end. 'new' to start a new session.\n")

@@ -1,4 +1,4 @@
-# Executive Travel Assistant — Ubuntu Deployment Guide
+# AnyCompany AI Travel Assistant — Ubuntu Deployment Guide
 
 Automated deployment of a travel planning multi-agent system on Amazon Bedrock AgentCore. Deploys a supervisor agent that orchestrates a flight search and booking sub-agent, backed by an MCP gateway connected to AWS Lambda functions.
 
@@ -40,6 +40,8 @@ The `search_flights` Lambda loads this JSON at cold start and searches it in-mem
 - `AWS_DEFAULT_REGION` set (defaults to `us-east-1`)
 - Lambda zip files present in the `lambdas/` directory (included in this repo)
 
+If you intend to deploy this workshop in your own AWS account with local Kiro installation in the laptop, then please ensure the IAM user has permissions mentioned in the section 'IAM Permissions Required by the Deploying Principal'.
+
 ### Install system packages
 
 Ubuntu 24.04 does not ship with `pip` or `venv` by default. Install them first:
@@ -64,10 +66,10 @@ pip install boto3 requests faker bedrock-agentcore bedrock-agentcore-starter-too
 
 ## Deployment Steps
 
-Run scripts in order from the `travel-assistant-workshop/` directory. Ensure the virtual environment is activated in every terminal session:
+Run scripts in order from the `sample-travel-assistant-workshop/` directory. Ensure the virtual environment is activated in every terminal session:
 
 ```bash
-cd travel-assistant-workshop
+cd sample-travel-assistant-workshop
 source .venv/bin/activate
 export AWS_DEFAULT_REGION=us-east-1
 ```
@@ -228,6 +230,102 @@ config.json
 | SSM Parameter Store | 2 parameters | `/agents/flight_agent_arn`, `/agents/supervisor_agent_arn` |
 | ECR | 2 repositories | auto-created by starter toolkit |
 
+## IAM Permissions Required by the Deploying Principal
+
+The IAM user or role running the deployment scripts needs the following permissions:
+
+### STS
+
+| Action | Used By | Purpose |
+|--------|---------|---------|
+| `sts:GetCallerIdentity` | All scripts | Retrieve account ID |
+
+### IAM
+
+| Action | Used By | Purpose |
+|--------|---------|---------|
+| `iam:CreateRole` | `deploy-gateway.py`, `travel-assistant.py` | Create Lambda, gateway, and agent roles |
+| `iam:DeleteRole` | `deploy-gateway.py`, `travel-assistant.py` | Recreate roles if they already exist |
+| `iam:GetRole` | `deploy-gateway.py` | Check if roles exist |
+| `iam:PutRolePolicy` | `deploy-gateway.py`, `travel-assistant.py` | Attach inline policies |
+| `iam:DeleteRolePolicy` | `deploy-gateway.py`, `travel-assistant.py` | Clean up inline policies before recreation |
+| `iam:AttachRolePolicy` | `deploy-gateway.py`, `travel-assistant.py` | Attach managed policies |
+| `iam:DetachRolePolicy` | `travel-assistant.py` | Detach managed policies before recreation |
+| `iam:ListRolePolicies` | `deploy-gateway.py`, `travel-assistant.py` | Enumerate inline policies during cleanup |
+| `iam:ListAttachedRolePolicies` | `travel-assistant.py` | Enumerate managed policies during cleanup |
+| `iam:PassRole` | `deploy-gateway.py`, `travel-assistant.py` | Pass roles to Lambda, Gateway, and AgentCore Runtime |
+
+### Lambda
+
+| Action | Used By | Purpose |
+|--------|---------|---------|
+| `lambda:CreateFunction` | `deploy-gateway.py` | Deploy `exec_search_flights_lambda` and `exec_book_flight_lambda` |
+| `lambda:GetFunction` | `deploy-gateway.py` | Check if functions already exist |
+
+### Amazon Cognito
+
+| Action | Used By | Purpose |
+|--------|---------|---------|
+| `cognito-idp:ListUserPools` | `deploy-gateway.py` | Check for existing pool |
+| `cognito-idp:CreateUserPool` | `deploy-gateway.py` | Create user pool |
+| `cognito-idp:CreateUserPoolDomain` | `deploy-gateway.py` | Create Cognito domain for OAuth |
+| `cognito-idp:DescribeResourceServer` | `deploy-gateway.py` | Check if resource server exists |
+| `cognito-idp:CreateResourceServer` | `deploy-gateway.py` | Create resource server with gateway scopes |
+| `cognito-idp:ListUserPoolClients` | `deploy-gateway.py` | Check for existing M2M client |
+| `cognito-idp:DescribeUserPoolClient` | `deploy-gateway.py` | Retrieve client secret |
+| `cognito-idp:CreateUserPoolClient` | `deploy-gateway.py` | Create M2M client credentials client |
+
+### Bedrock AgentCore (Control Plane)
+
+| Action | Used By | Purpose |
+|--------|---------|---------|
+| `bedrock-agentcore:CreateGateway` | `deploy-gateway.py` | Create the MCP gateway |
+| `bedrock-agentcore:ListGateways` | `deploy-gateway.py` | Find existing gateway on conflict |
+| `bedrock-agentcore:GetGateway` | `deploy-gateway.py` | Retrieve gateway URL |
+| `bedrock-agentcore:UpdateGateway` | `deploy-gateway.py` | Update authorizer config |
+| `bedrock-agentcore:CreateGatewayTarget` | `register-target.py` | Register `search_flights` and `book_flights` targets |
+
+### Bedrock AgentCore (Runtime — via Starter Toolkit)
+
+| Action | Used By | Purpose |
+|--------|---------|---------|
+| `bedrock-agentcore:*` | `travel-assistant.py` | The starter toolkit (`Runtime.launch()`) manages agent runtime creation, endpoint creation, and container builds |
+
+### SSM Parameter Store
+
+| Action | Used By | Purpose |
+|--------|---------|---------|
+| `ssm:PutParameter` | `travel-assistant.py` | Store `/agents/flight_agent_arn` and `/agents/supervisor_agent_arn` |
+| `ssm:GetParameter` | `travel-assistant.py` | Read back parameter ARN for supervisor permissions |
+
+### ECR (used by Starter Toolkit)
+
+| Action | Used By | Purpose |
+|--------|---------|---------|
+| `ecr:CreateRepository` | `travel-assistant.py` | Auto-created by starter toolkit |
+| `ecr:GetAuthorizationToken` | `travel-assistant.py` | Authenticate Docker to ECR |
+| `ecr:BatchGetImage`, `ecr:PutImage`, `ecr:InitiateLayerUpload`, `ecr:UploadLayerPart`, `ecr:CompleteLayerUpload`, `ecr:BatchCheckLayerAvailability` | `travel-assistant.py` | Push agent container images |
+
+### CloudWatch Logs (used by Starter Toolkit)
+
+| Action | Used By | Purpose |
+|--------|---------|---------|
+| `logs:CreateLogGroup`, `logs:CreateLogStream`, `logs:PutLogEvents` | `travel-assistant.py` | Build and deploy logging |
+
+### CodeBuild (used by Starter Toolkit)
+
+| Action | Used By | Purpose |
+|--------|---------|---------|
+| `codebuild:*` | `travel-assistant.py` | Build agent container images |
+
+### S3 (used by Starter Toolkit)
+
+| Action | Used By | Purpose |
+|--------|---------|---------|
+| `s3:*` | `travel-assistant.py` | Stage build artifacts |
+
+> **Note:** The `kiro-ide-instancerole-update.py` script (Step 1) attaches a policy covering all of the above to your instance role automatically.
+
 ## Troubleshooting (Ubuntu-specific)
 
 | Issue | Fix |
@@ -236,3 +334,10 @@ config.json
 | `No module named venv` | `sudo apt-get install -y python3.12-venv` |
 | `pip: command not found` | `sudo apt-get install -y python3-pip` |
 | `node: command not found` | `sudo apt-get install -y nodejs npm` |
+## Security
+
+See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
+
+## License
+
+This library is licensed under the MIT-0 License. See the LICENSE file.

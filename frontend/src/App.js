@@ -81,7 +81,7 @@ function App() {
   return (
     <div style={styles.container}>
       <div style={styles.banner}>
-        <h1 style={styles.title}>✈️ Your Travel Assistant</h1>
+        <h1 style={styles.title}>✈️ AnyCompany AI Travel Assistant</h1>
         <p style={styles.subtitle}>Only Flight functionality for now</p>
       </div>
 
